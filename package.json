@@ -1,0 +1,12 @@
+{
+  "name": "@lyncdai/openclaw-lyncd",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin for Lyncd Bridge agent collaboration platform",
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.19.0"
+  },
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  }
+}

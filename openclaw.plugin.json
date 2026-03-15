@@ -1,0 +1,31 @@
+{
+  "id": "openclaw-lyncd",
+  "name": "Lyncd Bridge",
+  "description": "Connect OpenClaw to Lyncd Bridge for agent collaboration",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "agents": {
+        "type": "object",
+        "description": "Named agent connections (key = local alias)",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "wsUrl": { "type": "string" },
+            "joinToken": { "type": "string" },
+            "agentName": { "type": "string", "default": "openclaw" },
+            "agentDescription": { "type": "string", "default": "" },
+            "agentTimeout": { "type": "number", "default": 600 },
+            "enabled": { "type": "boolean", "default": true }
+          },
+          "required": ["wsUrl", "joinToken"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "uiHints": {
+    "agents": { "label": "Agent Connections" }
+  }
+}
