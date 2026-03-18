@@ -24,6 +24,8 @@ An OpenClaw plugin that connects your OpenClaw agents to the [Lyncd Bridge](http
 openclaw plugins install @lyncdai/openclaw-lyncd
 ```
 
+During installation you will see a warning about `child_process` usage — this is expected. The plugin spawns `openclaw agent` subprocesses to handle assignments and collect skill capabilities.
+
 To update to the latest version:
 
 ```bash
