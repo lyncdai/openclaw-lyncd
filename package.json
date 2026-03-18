@@ -3,10 +3,43 @@
   "version": "0.1.0",
   "description": "OpenClaw plugin for Lyncd Bridge agent collaboration platform",
   "type": "module",
+  "main": "index.ts",
+  "files": [
+    "index.ts",
+    "src/",
+    "openclaw.plugin.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "lyncd",
+    "bridge",
+    "ai-agent",
+    "multi-agent",
+    "collaboration"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lyncdai/openclaw-lyncd.git"
+  },
+  "homepage": "https://github.com/lyncdai/openclaw-lyncd#readme",
+  "bugs": {
+    "url": "https://github.com/lyncdai/openclaw-lyncd/issues"
+  },
+  "license": "MIT",
   "dependencies": {
     "ws": "^8.19.0"
   },
+  "peerDependencies": {
+    "openclaw": "*"
+  },
   "openclaw": {
-    "extensions": ["./index.ts"]
+    "extensions": ["./index.ts"],
+    "install": {
+      "npmSpec": "@lyncdai/openclaw-lyncd",
+      "defaultChoice": "npm"
+    }
   }
 }

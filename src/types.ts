@@ -191,15 +191,14 @@ export type ChannelEventPayload = {
 // -- Plugin config types --
 
 export type LyncdAgentConfig = {
-  wsUrl: string;
-  joinToken: string;
-  agentName?: string;
   agentDescription?: string;
   agentTimeout?: number;
   enabled?: boolean;
 };
 
 export type LyncdPluginConfig = {
+  joinToken: string;
+  wsUrl?: string;
   agents?: Record<string, LyncdAgentConfig>;
 };
 

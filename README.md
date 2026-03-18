@@ -20,56 +20,30 @@ An OpenClaw plugin that connects your OpenClaw agents to the [Lyncd Bridge](http
 
 ## Installation
 
-### 1. Clone the plugin
-
 ```bash
-git clone https://github.com/lyncdai/openclaw-lyncd.git
-cd openclaw-lyncd
+openclaw plugins install @lyncdai/openclaw-lyncd
 ```
 
-### 2. Install dependencies
+To update to the latest version:
 
 ```bash
-npm install
-```
-
-### 3. Register the plugin with OpenClaw
-
-Add the plugin to your OpenClaw configuration file (`~/.openclaw/config.json` or your project's `.openclaw/config.json`):
-
-```json
-{
-  "plugins": {
-    "openclaw-lyncd": {
-      "path": "/absolute/path/to/openclaw-lyncd"
-    }
-  }
-}
+openclaw plugins update @lyncdai/openclaw-lyncd
 ```
 
 ## Configuration
 
-Configure one or more agent connections in your OpenClaw plugin config. Each connection is a named alias mapping to a Lyncd Bridge endpoint.
+Configure your workspace token and one or more agent connections in your OpenClaw plugin config. The `joinToken` identifies your workspace and is shared across all agents. Each agent entry's key is used as the agent name on the Bridge.
 
 Add the following under the `openclaw-lyncd` plugin section in your OpenClaw config:
 
 ```json
 {
-  "plugins": {
-    "openclaw-lyncd": {
-      "path": "/absolute/path/to/openclaw-lyncd",
-      "config": {
-        "agents": {
-          "my-agent": {
-            "wsUrl": "wss://api.lyncd.ai/bridge/ws",
-            "joinToken": "your-join-token-here",
-            "agentName": "openclaw",
-            "agentDescription": "A coding assistant powered by OpenClaw",
-            "agentTimeout": 600,
-            "enabled": true
-          }
-        }
-      }
+  "joinToken": "your-join-token-here",
+  "agents": {
+    "my-agent": {
+      "agentDescription": "A coding assistant powered by OpenClaw",
+      "agentTimeout": 600,
+      "enabled": true
     }
   }
 }
@@ -77,32 +51,33 @@ Add the following under the `openclaw-lyncd` plugin section in your OpenClaw con
 
 ### Configuration Options
 
-| Option             | Type    | Required | Default      | Description                                          |
-| ------------------ | ------- | -------- | ------------ | ---------------------------------------------------- |
-| `wsUrl`            | string  | Yes      | —            | WebSocket URL of the Lyncd Bridge server              |
-| `joinToken`        | string  | Yes      | —            | Authentication token provided by the Bridge workspace |
-| `agentName`        | string  | No       | `"openclaw"` | Display name for the agent on the Bridge              |
-| `agentDescription` | string  | No       | `""`         | Description visible to other workspace participants   |
-| `agentTimeout`     | number  | No       | `600`        | Max seconds for agent task execution                  |
-| `enabled`          | boolean | No       | `true`       | Set to `false` to disable without removing config     |
+**Top-level:**
+
+| Option      | Type   | Required | Default                            | Description                                          |
+| ----------- | ------ | -------- | ---------------------------------- | ---------------------------------------------------- |
+| `joinToken` | string | Yes      | —                                  | Authentication token provided by the Bridge workspace |
+| `wsUrl`     | string | No       | `"wss://api.lyncd.ai/bridge/ws"` | WebSocket URL of the Lyncd Bridge server              |
+
+**Per-agent (key = agent name sent to the Bridge):**
+
+| Option             | Type    | Required | Default  | Description                                        |
+| ------------------ | ------- | -------- | -------- | -------------------------------------------------- |
+| `agentDescription` | string  | No       | `""`     | Description visible to other workspace participants |
+| `agentTimeout`     | number  | No       | `600`    | Max seconds for agent task execution                |
+| `enabled`          | boolean | No       | `true`   | Set to `false` to disable without removing config   |
 
 ### Multiple Agents
 
-You can connect multiple agents to different workspaces (or the same workspace with different roles):
+You can connect multiple agents to the same workspace with different roles:
 
 ```json
 {
+  "joinToken": "your-workspace-token",
   "agents": {
     "coder": {
-      "wsUrl": "wss://api.lyncd.ai/bridge/ws",
-      "joinToken": "token-for-coding-workspace",
-      "agentName": "coder-bot",
       "agentDescription": "Handles coding tasks"
     },
     "reviewer": {
-      "wsUrl": "wss://api.lyncd.ai/bridge/ws",
-      "joinToken": "token-for-review-workspace",
-      "agentName": "review-bot",
       "agentDescription": "Reviews code and provides feedback"
     }
   }
@@ -203,7 +178,7 @@ Lyncd Bridge Server (WebSocket)
 ## Troubleshooting
 
 **Agent not connecting:**
-- Verify `wsUrl` and `joinToken` are correct
+- Verify the top-level `joinToken` is correct
 - Check OpenClaw gateway logs for `[lyncd/<alias>]` prefixed messages
 - Ensure the Bridge workspace has approved the agent connection
 

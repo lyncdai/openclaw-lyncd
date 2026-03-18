@@ -117,8 +117,12 @@ const plugin: OpenClawPluginDefinition = {
 
   register(api) {
     const config = api.pluginConfig as LyncdPluginConfig | undefined;
-    const agentEntries = config?.agents;
+    if (!config?.joinToken) return;
+    const agentEntries = config.agents;
     if (!agentEntries || Object.keys(agentEntries).length === 0) return;
+
+    const joinToken = config.joinToken;
+    const wsUrl = config.wsUrl ?? "wss://api.lyncd.ai/bridge/ws";
 
     // Capture the full OpenClaw config for profile resolution
     const openclawConfig = api.config as Record<string, unknown>;
@@ -132,18 +136,14 @@ const plugin: OpenClawPluginDefinition = {
         for (const [alias, agentConfig] of Object.entries(agentEntries)) {
           // Skip disabled agents
           if (agentConfig.enabled === false) continue;
-          if (!agentConfig.wsUrl || !agentConfig.joinToken) {
-            ctx.logger.warn(`[lyncd/${alias}] skipping: missing wsUrl or joinToken`);
-            continue;
-          }
 
           const agentTimeout = agentConfig.agentTimeout ?? 600;
 
           const client = new BridgeClient({
             alias,
-            wsUrl: agentConfig.wsUrl,
-            joinToken: agentConfig.joinToken,
-            agentName: agentConfig.agentName ?? "openclaw",
+            wsUrl,
+            joinToken,
+            agentName: alias,
             agentDescription: agentConfig.agentDescription ?? "",
             agentTimeout,
             getTools: () => collectCapabilities(openclawConfig),

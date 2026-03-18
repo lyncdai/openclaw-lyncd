@@ -5,25 +5,41 @@
   "configSchema": {
     "type": "object",
     "properties": {
+      "joinToken": {
+        "type": "string",
+        "description": "Workspace join token (shared across all agents)"
+      },
+      "wsUrl": {
+        "type": "string",
+        "description": "WebSocket URL of the Lyncd Bridge server",
+        "default": "wss://api.lyncd.ai/bridge/ws"
+      },
       "agents": {
         "type": "object",
-        "description": "Named agent connections (key = local alias)",
+        "description": "Named agent connections — rename each key (e.g. \"main\") to the agent name you want on the Bridge",
         "additionalProperties": {
           "type": "object",
           "properties": {
-            "wsUrl": { "type": "string" },
-            "joinToken": { "type": "string" },
-            "agentName": { "type": "string", "default": "openclaw" },
             "agentDescription": { "type": "string", "default": "" },
             "agentTimeout": { "type": "number", "default": 600 },
             "enabled": { "type": "boolean", "default": true }
           },
-          "required": ["wsUrl", "joinToken"],
           "additionalProperties": false
         }
       }
     },
-    "additionalProperties": false
+    "required": ["joinToken"],
+    "additionalProperties": false,
+    "default": {
+      "joinToken": "<paste-your-workspace-join-token>",
+      "agents": {
+        "main": {
+          "agentDescription": "",
+          "agentTimeout": 600,
+          "enabled": true
+        }
+      }
+    }
   },
   "uiHints": {
     "agents": { "label": "Agent Connections" }
