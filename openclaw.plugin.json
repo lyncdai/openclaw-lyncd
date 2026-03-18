@@ -1,7 +1,7 @@
 {
   "id": "openclaw-lyncd",
-  "name": "Lyncd Bridge",
-  "description": "Connect OpenClaw to Lyncd Bridge for agent collaboration",
+  "name": "Lyncd",
+  "description": "Bring your OpenClaw agents into Lyncd — the shared workspace where humans and agents work together",
   "configSchema": {
     "type": "object",
     "properties": {
@@ -16,7 +16,7 @@
       },
       "agents": {
         "type": "object",
-        "description": "Named agent connections — rename each key (e.g. \"main\") to the agent name you want on the Bridge",
+        "description": "Named agent connections — rename each key (e.g. \"main\") to the agent name you want on Lyncd",
         "additionalProperties": {
           "type": "object",
           "properties": {
