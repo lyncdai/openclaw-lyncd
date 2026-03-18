@@ -1,8 +1,7 @@
-import { execFile } from "node:child_process";
 import type { OpenClawPluginDefinition } from "openclaw/plugin-sdk/core";
 import { BridgeClient } from "./src/client.js";
 import { ChannelContextStore } from "./src/context-store.js";
-import { dispatchToOpenClaw } from "./src/dispatch.js";
+import { dispatchToOpenClaw, getEligibleSkills } from "./src/dispatch.js";
 import type { LyncdPluginConfig } from "./src/types.js";
 
 // Static core tool definitions mirroring src/agents/tool-catalog.ts.
@@ -58,33 +57,6 @@ function getPluginToolNames(): string[] {
   } catch {
     return [];
   }
-}
-
-/** Get eligible skill names via `openclaw skills list --eligible --json`. */
-function getEligibleSkills(): Promise<string[]> {
-  return new Promise((resolve) => {
-    execFile(
-      "openclaw",
-      ["skills", "list", "--eligible", "--json"],
-      { timeout: 15_000 },
-      (err, stdout) => {
-        if (err) {
-          resolve([]);
-          return;
-        }
-        try {
-          const data = JSON.parse(stdout);
-          const names: string[] = [];
-          for (const skill of data?.skills ?? []) {
-            if (skill.eligible && skill.name) names.push(skill.name);
-          }
-          resolve(names);
-        } catch {
-          resolve([]);
-        }
-      },
-    );
-  });
 }
 
 /**

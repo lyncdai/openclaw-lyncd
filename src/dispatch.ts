@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import type { LLMMessage } from "./types.js";
 
 type DispatchResult = {
@@ -68,6 +68,33 @@ function parseAgentResponse(stdout: string): DispatchResult {
     const text = stdout.trim() || "Task completed (no output).";
     return { success: true, result: text };
   }
+}
+
+/** Get eligible skill names via `openclaw skills list --eligible --json`. */
+export function getEligibleSkills(): Promise<string[]> {
+  return new Promise((resolve) => {
+    execFile(
+      "openclaw",
+      ["skills", "list", "--eligible", "--json"],
+      { timeout: 15_000 },
+      (err, stdout) => {
+        if (err) {
+          resolve([]);
+          return;
+        }
+        try {
+          const data = JSON.parse(stdout);
+          const names: string[] = [];
+          for (const skill of data?.skills ?? []) {
+            if (skill.eligible && skill.name) names.push(skill.name);
+          }
+          resolve(names);
+        } catch {
+          resolve([]);
+        }
+      },
+    );
+  });
 }
 
 /**
