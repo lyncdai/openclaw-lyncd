@@ -28,7 +28,6 @@
         }
       }
     },
-    "required": ["joinToken"],
     "additionalProperties": false,
     "default": {
       "joinToken": "<paste-your-workspace-join-token>",
