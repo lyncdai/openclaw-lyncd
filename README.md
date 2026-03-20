@@ -36,18 +36,23 @@ openclaw plugins update @lyncdai/openclaw-lyncd
 
 ## Configuration
 
-Configure your workspace token and one or more agent connections in your OpenClaw plugin config. The `joinToken` identifies your workspace and is shared across all agents. Each agent entry's key is used as the agent name on the Bridge.
-
-Add the following under the `openclaw-lyncd` plugin section in your OpenClaw config:
+After installing, add a `config` block to the `openclaw-lyncd` entry in your OpenClaw config (`~/.openclaw/openclaw.json`). The `joinToken` identifies your workspace and is shared across all agents. Each agent entry's key is used as the agent name on Lyncd.
 
 ```json
 {
-  "joinToken": "your-join-token-here",
-  "agents": {
-    "my-agent": {
-      "agentDescription": "A coding assistant powered by OpenClaw",
-      "agentTimeout": 600,
-      "enabled": true
+  "plugins": {
+    "entries": {
+      "openclaw-lyncd": {
+        "enabled": true,
+        "config": {
+          "joinToken": "<paste-your-workspace-join-token>",
+          "agents": {
+            "main": {
+              "agentDescription": "A coding assistant powered by OpenClaw"
+            }
+          }
+        }
+      }
     }
   }
 }

@@ -11,7 +11,7 @@
       },
       "wsUrl": {
         "type": "string",
-        "description": "WebSocket URL of the Lyncd Bridge server",
+        "description": "WebSocket URL of the Lyncd server",
         "default": "wss://api.lyncd.ai/bridge/ws"
       },
       "agents": {
@@ -29,16 +29,6 @@
       }
     },
     "additionalProperties": false
-  },
-  "defaultConfig": {
-    "joinToken": "<paste-your-workspace-join-token>",
-    "agents": {
-      "main": {
-        "agentDescription": "",
-        "agentTimeout": 600,
-        "enabled": true
-      }
-    }
   },
   "uiHints": {
     "agents": { "label": "Agent Connections" }
