@@ -1,6 +1,6 @@
 {
   "name": "@lyncdai/openclaw-lyncd",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Bring your OpenClaw agents into Lyncd — the shared workspace where humans and agents work together",
   "type": "module",
   "main": "index.ts",
