@@ -1,7 +1,9 @@
-import { readFileSync, writeFileSync, mkdirSync, unlinkSync, existsSync, chmodSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync, unlinkSync, existsSync, statSync } from "node:fs";
+import { join, basename, extname } from "node:path";
+import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
 import type {
+  ArtifactUploadReadyPayload,
   AssignmentPayload,
   BridgeApprovedPayload,
   BridgeAuthResultPayload,
@@ -17,6 +19,7 @@ import {
   EventAssignmentAck,
   EventAssignmentComplete,
   EventArtifactUploadComplete,
+  EventArtifactUploadReady,
   EventArtifactUploadRequest,
   EventBridgeApproved,
   EventBridgeAuth,
@@ -32,6 +35,41 @@ import {
   EventMessage,
   EventStatusUpdate,
 } from "./types.js";
+
+const MIME_TYPES: Record<string, string> = {
+  ".txt": "text/plain",
+  ".html": "text/html",
+  ".htm": "text/html",
+  ".css": "text/css",
+  ".js": "application/javascript",
+  ".json": "application/json",
+  ".xml": "application/xml",
+  ".csv": "text/csv",
+  ".md": "text/markdown",
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+  ".zip": "application/zip",
+  ".tar": "application/x-tar",
+  ".gz": "application/gzip",
+  ".mp3": "audio/mpeg",
+  ".mp4": "video/mp4",
+  ".wav": "audio/wav",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+};
+
+function mimeFromFilename(filename: string): string {
+  return MIME_TYPES[extname(filename).toLowerCase()] ?? "application/octet-stream";
+}
 
 export type BridgeClientConfig = {
   alias: string;
@@ -64,6 +102,7 @@ export class BridgeClient {
   private assignmentHandler: AssignmentHandler | null = null;
   private mentionHandler: MentionHandler | null = null;
   private channelEventHandler: ChannelEventHandler | null = null;
+  private pendingUploads = new Map<string, { resolve: (payload: ArtifactUploadReadyPayload) => void; reject: (err: Error) => void }>();
 
   constructor(config: BridgeClientConfig) {
     this.config = config;
@@ -146,6 +185,7 @@ export class BridgeClient {
     contentType: string,
     sizeBytes: number,
     assignmentId?: string,
+    requestId?: string,
   ): Promise<void> {
     const payload: Record<string, unknown> = {
       channel_id: channelId,
@@ -154,11 +194,75 @@ export class BridgeClient {
       size_bytes: sizeBytes,
     };
     if (assignmentId) payload.assignment_id = assignmentId;
+    if (requestId) payload.request_id = requestId;
     await this.sendEnvelope(EventArtifactUploadRequest, payload);
   }
 
   async sendArtifactUploadComplete(artifactId: string): Promise<void> {
     await this.sendEnvelope(EventArtifactUploadComplete, { artifact_id: artifactId });
+  }
+
+  // -- Artifact upload lifecycle --
+
+  async uploadArtifact(filePath: string, channelId: string, assignmentId?: string): Promise<void> {
+    const stat = statSync(filePath);
+    const filename = basename(filePath);
+    const contentType = mimeFromFilename(filename);
+    const requestId = randomUUID();
+
+    // 1. Request upload slot
+    await this.sendArtifactUploadRequest(channelId, filename, contentType, stat.size, assignmentId, requestId);
+
+    // 2. Wait for bridge to respond with pre-signed URL
+    const ready = await this.waitForUploadReady(requestId);
+
+    // 3. PUT file content to the pre-signed URL
+    const body = readFileSync(filePath);
+    const res = await fetch(ready.upload_url, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body,
+    });
+    if (!res.ok) {
+      throw new Error(`artifact PUT failed: ${res.status} ${res.statusText}`);
+    }
+
+    // 4. Notify bridge that upload is complete
+    await this.sendArtifactUploadComplete(ready.artifact_id);
+    this.log("info", `uploaded artifact: ${filename} (${ready.artifact_id})`);
+  }
+
+  private waitForUploadReady(requestId: string, timeoutMs = 30_000): Promise<ArtifactUploadReadyPayload> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingUploads.delete(requestId);
+        reject(new Error(`artifact upload ready timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      this.pendingUploads.set(requestId, {
+        resolve: (payload) => {
+          clearTimeout(timer);
+          this.pendingUploads.delete(requestId);
+          resolve(payload);
+        },
+        reject: (err) => {
+          clearTimeout(timer);
+          this.pendingUploads.delete(requestId);
+          reject(err);
+        },
+      });
+    });
+  }
+
+  private handleArtifactUploadReady(payload: ArtifactUploadReadyPayload): void {
+    if (payload.request_id) {
+      const pending = this.pendingUploads.get(payload.request_id);
+      if (pending) {
+        pending.resolve(payload);
+        return;
+      }
+    }
+    this.log("warn", `received artifact_upload_ready with no matching request_id: ${payload.request_id ?? "none"}`);
   }
 
   // -- Connection lifecycle --
@@ -228,6 +332,11 @@ export class BridgeClient {
       this.stopHeartbeat();
       this.ws = null;
       this.authenticated = false;
+      // Reject all pending upload promises
+      for (const [, pending] of this.pendingUploads) {
+        pending.reject(new Error("WebSocket closed"));
+      }
+      this.pendingUploads.clear();
       this._onReconnect?.(false);
     });
 
@@ -320,6 +429,9 @@ export class BridgeClient {
         break;
       case EventChannelEvent:
         this.handleChannelEvent(p as unknown as ChannelEventPayload);
+        break;
+      case EventArtifactUploadReady:
+        this.handleArtifactUploadReady(p as unknown as ArtifactUploadReadyPayload);
         break;
       default:
         break;

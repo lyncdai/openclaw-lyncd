@@ -87,6 +87,7 @@ export type ArtifactUploadRequestPayload = {
   filename: string;
   content_type: string;
   size_bytes: number;
+  request_id?: string;
 };
 
 export type ArtifactUploadCompletePayload = {
@@ -134,6 +135,7 @@ export type AssignmentPayload = {
 export type ArtifactUploadReadyPayload = {
   artifact_id: string;
   upload_url: string;
+  request_id?: string;
 };
 
 // -- LLM types (OpenAI-compatible, from bridge/llm.go) --

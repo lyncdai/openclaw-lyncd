@@ -4,6 +4,7 @@ import type { LLMMessage } from "./types.js";
 type DispatchResult = {
   success: boolean;
   result: string;
+  mediaFiles: string[];
 };
 
 type AgentGatewayResult = {
@@ -44,29 +45,36 @@ function buildAgentMessage(opts: { description: string; messages?: LLMMessage[] 
   return parts.join("\n");
 }
 
-/** Parse agent response JSON, extracting text from payloads. */
+/** Parse agent response JSON, extracting text and media files from payloads. */
 function parseAgentResponse(stdout: string): DispatchResult {
   try {
     const response = JSON.parse(stdout.trim()) as Record<string, unknown>;
     const texts: string[] = [];
+    const mediaFiles: string[] = [];
 
     // payloads is at the top level, not under result
     const payloads = (response.payloads ?? (response as GatewayAgentResponse).result?.payloads) as
-      | Array<{ text?: string }>
+      | Array<{ text?: string; mediaUrl?: string | null; mediaUrls?: string[] }>
       | undefined;
     if (payloads) {
       for (const payload of payloads) {
         if (payload.text) texts.push(payload.text);
+        if (payload.mediaUrl) mediaFiles.push(payload.mediaUrl);
+        if (payload.mediaUrls) {
+          for (const url of payload.mediaUrls) {
+            if (url) mediaFiles.push(url);
+          }
+        }
       }
     }
 
     const combinedText =
       texts.join("\n\n") || (response as GatewayAgentResponse).summary || "Task completed.";
-    return { success: true, result: combinedText };
+    return { success: true, result: combinedText, mediaFiles };
   } catch {
     // If stdout isn't valid JSON, return it as-is
     const text = stdout.trim() || "Task completed (no output).";
-    return { success: true, result: text };
+    return { success: true, result: text, mediaFiles: [] };
   }
 }
 
@@ -139,13 +147,13 @@ export async function dispatchToOpenClaw(opts: {
     });
 
     proc.on("error", (err) => {
-      resolve({ success: false, result: `Failed to spawn openclaw: ${err.message}` });
+      resolve({ success: false, result: `Failed to spawn openclaw: ${err.message}`, mediaFiles: [] });
     });
 
     proc.on("close", (code) => {
       if (code !== 0) {
         const errorMsg = stderr.trim() || `openclaw agent exited with code ${code}`;
-        resolve({ success: false, result: errorMsg });
+        resolve({ success: false, result: errorMsg, mediaFiles: [] });
         return;
       }
       resolve(parseAgentResponse(stdout));

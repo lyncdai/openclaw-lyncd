@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import type { OpenClawPluginDefinition } from "openclaw/plugin-sdk/core";
 import { BridgeClient } from "./src/client.js";
 import { ChannelContextStore } from "./src/context-store.js";
@@ -56,6 +57,27 @@ function getPluginToolNames(): string[] {
     return names;
   } catch {
     return [];
+  }
+}
+
+/** Upload media files produced by the agent, skipping missing files. */
+async function uploadMediaFiles(
+  client: BridgeClient,
+  mediaFiles: string[],
+  channelId: string,
+  assignmentId: string | undefined,
+  logger: { info: (msg: string) => void; error: (msg: string) => void },
+): Promise<void> {
+  for (const filePath of mediaFiles) {
+    if (!existsSync(filePath)) {
+      logger.info(`[lyncd] skipping missing media file: ${filePath}`);
+      continue;
+    }
+    try {
+      await client.uploadArtifact(filePath, channelId, assignmentId);
+    } catch (err) {
+      logger.error(`[lyncd] failed to upload artifact ${filePath}: ${err}`);
+    }
   }
 }
 
@@ -156,6 +178,11 @@ const plugin: OpenClawPluginDefinition = {
             // Agent session now owns this context — clear from disk
             contextStore.clear(event.channel_id);
 
+            // Upload any media files before sending text
+            if (result.mediaFiles.length > 0) {
+              await uploadMediaFiles(client, result.mediaFiles, event.channel_id, undefined, ctx.logger);
+            }
+
             if (result.result) {
               await client.sendMessage(event.channel_id, result.result);
             }
@@ -175,6 +202,11 @@ const plugin: OpenClawPluginDefinition = {
               agentId: alias,
               sessionId,
             });
+
+            // Upload any media files before sending text
+            if (result.mediaFiles.length > 0) {
+              await uploadMediaFiles(client, result.mediaFiles, assignment.channel_id, assignment.assignment_id, ctx.logger);
+            }
 
             // Send result back as a message to the channel
             if (result.result) {
