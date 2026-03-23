@@ -31,7 +31,7 @@ During installation you will see a warning about `child_process` usage — this 
 To update to the latest version:
 
 ```bash
-openclaw plugins update @lyncdai/openclaw-lyncd
+openclaw plugins update openclaw-lyncd
 ```
 
 ## Configuration
