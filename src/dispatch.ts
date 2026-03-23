@@ -1,4 +1,7 @@
 import { execFile, spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { isAbsolute, join } from "node:path";
 import type { LLMMessage } from "./types.js";
 
 type DispatchResult = {
@@ -45,6 +48,44 @@ function buildAgentMessage(opts: { description: string; messages?: LLMMessage[] 
   return parts.join("\n");
 }
 
+/** Resolve the OpenClaw workspace directory, mirroring default path logic. */
+function resolveWorkspaceDir(): string {
+  const profile = process.env.OPENCLAW_PROFILE;
+  const suffix = profile ? `-${profile}` : "";
+  return join(homedir(), `.openclaw`, `workspace${suffix}`);
+}
+
+/** Known file extensions for text-scanning extraction. */
+const KNOWN_EXTENSIONS = new Set([
+  "pdf", "md", "docx", "csv", "xlsx", "html", "txt", "json",
+  "png", "jpg", "jpeg", "svg", "gif", "webp",
+  "xml", "yaml", "yml", "toml",
+]);
+
+/**
+ * Scan agent response text for filename-like references and resolve them
+ * against the workspace directory. Only returns files that exist on disk.
+ */
+function extractFilesFromText(text: string, workspaceDir: string): string[] {
+  const found = new Set<string>();
+
+  // Match backtick-wrapped filenames with extensions
+  const backtickPattern = /`([^`\n]+\.(\w{1,5}))`/g;
+  let match: RegExpExecArray | null;
+  while ((match = backtickPattern.exec(text)) !== null) {
+    const filename = match[1];
+    const ext = match[2].toLowerCase();
+    if (!KNOWN_EXTENSIONS.has(ext)) continue;
+
+    const resolved = isAbsolute(filename) ? filename : join(workspaceDir, filename);
+    if (existsSync(resolved)) {
+      found.add(resolved);
+    }
+  }
+
+  return [...found];
+}
+
 /** Parse agent response JSON, extracting text and media files from payloads. */
 function parseAgentResponse(stdout: string): DispatchResult {
   try {
@@ -70,6 +111,13 @@ function parseAgentResponse(stdout: string): DispatchResult {
 
     const combinedText =
       texts.join("\n\n") || (response as GatewayAgentResponse).summary || "Task completed.";
+
+    // Fallback: if no media files from payloads, scan the response text for filenames
+    if (mediaFiles.length === 0 && combinedText) {
+      const extracted = extractFilesFromText(combinedText, resolveWorkspaceDir());
+      mediaFiles.push(...extracted);
+    }
+
     return { success: true, result: combinedText, mediaFiles };
   } catch {
     // If stdout isn't valid JSON, return it as-is
