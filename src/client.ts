@@ -216,6 +216,10 @@ export class BridgeClient {
     // 2. Wait for bridge to respond with pre-signed URL
     const ready = await this.waitForUploadReady(requestId);
 
+    if (!ready.upload_url) {
+      throw new Error(`bridge returned empty upload_url for artifact ${ready.artifact_id}`);
+    }
+
     // 3. PUT file content to the pre-signed URL
     const body = readFileSync(filePath);
     const res = await fetch(ready.upload_url, {
@@ -255,6 +259,7 @@ export class BridgeClient {
   }
 
   private handleArtifactUploadReady(payload: ArtifactUploadReadyPayload): void {
+    this.log("info", `artifact_upload_ready: artifact_id=${payload.artifact_id} has_url=${!!payload.upload_url} request_id=${payload.request_id ?? "none"}`);
     if (payload.request_id) {
       const pending = this.pendingUploads.get(payload.request_id);
       if (pending) {
